@@ -12,7 +12,9 @@
 
 ## Backend
 
-Fully integrated with FastAPI Backend. Currently configured to accept input via POST requests (which triggers the scraper) in the following JSON format:
+Fully integrated with FastAPI Backend. Currently configured to accept input via POST requests (which triggers the scraper). 
+
+In order to test it with PostMan, click on the Body tab and select the "raw" radio button. The, select JSON from the dropdown list and enter the following into the code/input box:
 
 ```
 {
