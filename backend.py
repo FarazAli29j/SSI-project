@@ -1,12 +1,17 @@
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 import whisper
 import sounddevice as sd
 import numpy as np
 import tempfile
 import os
-import argparse
 import torchaudio
 from scipy.io.wavfile import write as wav_write
 
+#  Initialize FastAPI app
+app = FastAPI(title="Whisper Transcription API", description="Speech-to-Text with TTS", version="1.0")
+
+#  Load Whisper model once (so it's reused across requests)
 def load_whisper_model(model_size="medium"):
     try:
         return whisper.load_model(model_size)
@@ -16,6 +21,8 @@ def load_whisper_model(model_size="medium"):
 
 model = load_whisper_model()
 
+
+#  Record microphone input (optional feature)
 def record_audio_to_file(filename: str):
     print("🎙️ Recording... Press ENTER to stop.")
     samplerate = 16000
@@ -44,6 +51,8 @@ def record_audio_to_file(filename: str):
         print(f"❗ Error saving audio: {e}")
         return False
 
+
+# Convert MP3 to WAV (if needed)
 def convert_mp3_to_wav(mp3_path):
     wav_path = mp3_path.replace(".mp3", ".wav")
     try:
@@ -54,6 +63,8 @@ def convert_mp3_to_wav(mp3_path):
         print(f"❗ Error converting MP3 to WAV: {e}")
         return None
 
+
+#  Transcribe audio using Whisper
 def transcribe_audio(file_path):
     print(f"🔍 Transcribing: {file_path}")
     try:
@@ -63,45 +74,67 @@ def transcribe_audio(file_path):
         print(f"❗ Error during transcription: {e}")
         return None
 
-def main():
-    parser = argparse.ArgumentParser(description="Voice to Text Transcription with Whisper")
-    parser.add_argument('--mic', action='store_true', help="Record audio from microphone")
-    parser.add_argument('--file', type=str, help="Transcribe from an existing audio file (.wav or .mp3)")
-    args = parser.parse_args()
 
-    transcription = None
-
-    if args.mic:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmpfile:
-            if record_audio_to_file(tmpfile.name):
-                transcription = transcribe_audio(tmpfile.name)
-            os.remove(tmpfile.name)
-
-    elif args.file:
-        input_file = args.file
-        if not os.path.isfile(input_file):
-            print(f"❗ File not found: {input_file}")
-            return
-        if input_file.endswith(".mp3"):
-            input_file = convert_mp3_to_wav(input_file)
-            if not input_file:
-                return
-        elif not input_file.endswith(".wav"):
-            print("❗ Unsupported file format. Use .wav or .mp3.")
-            return
-        transcription = transcribe_audio(input_file)
-
-    else:
-        print("❗ Use --mic to record or --file <path> to transcribe a file.")
+# Speak transcribed text using system TTS (macOS `say`)
+def speak_text(text, voice="Samantha", speed=180):
+    """
+    Speaks text using macOS 'say' command with custom voice and speed.
+    voice: Voice name from `say -v ?`
+    speed: Words per minute (default 180)
+    """
+    if not text:
+        print("❗ Nothing to speak.")
         return
+    try:
+        os.system(f'say -v "{voice}" -r {speed} "{text}"')
+        print(f"✅ Spoken with voice '{voice}' at {speed} WPM.")
+    except Exception as e:
+        print(f"❗ Error during speech synthesis: {e}")
 
-    if transcription:
-        print("\n📄 Transcribed Text:")
-        print("-" * 50)
-        print(transcription)
-        print("-" * 50)
-    else:
-        print("❗ No transcription available.")
 
+# 🚀 FastAPI Endpoints
+@app.post("/transcribe")
+async def transcribe(file: UploadFile = File(...), speak: bool = Form(False)):
+    """
+    Upload an audio file (.wav or .mp3), transcribe it using Whisper,
+    and optionally speak the result with system TTS.
+    """
+    try:
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file.filename) as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+
+        # Convert mp3 to wav if needed
+        if tmp_path.endswith(".mp3"):
+            tmp_path = convert_mp3_to_wav(tmp_path)
+
+        # Run transcription
+        transcription = transcribe_audio(tmp_path)
+
+        # Cleanup
+        os.remove(tmp_path)
+
+        if not transcription:
+            return JSONResponse(content={"error": "Transcription failed"}, status_code=500)
+
+        # Optionally speak the text
+        if speak:
+            speak_text(transcription)
+
+        return {"transcription": transcription}
+
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+# Root endpoint
+@app.get("/")
+def home():
+    return {"message": "Welcome to Whisper Transcription API with TTS 🎙️"}
+
+
+# Run FastAPI only when executing this file directly
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run("backend:app", host="127.0.0.1", port=8000, reload=True)
