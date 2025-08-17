@@ -1,0 +1,60 @@
+Libraries and Tools Used in the Whisper Transcription Project
+
+1. FastAPI
+Type: Python Web Framework  
+Use: Provides the backend API for handling audio uploads, transcription requests, and returning responses.  
+Frontend Connection: The React frontend will send requests (audio files) to FastAPI endpoints.  
+
+2. Uvicorn
+Type: ASGI Server  
+Use: Runs the FastAPI application locally on a server (http://127.0.0.1:8000).  
+
+3. Whisper (OpenAI)
+Type: Python Library (Speech-to-Text Model)  
+Use: Performs the actual transcription of audio files into text.  
+
+4. sounddevice
+Type: Python Library  
+Use: Captures live microphone input from the system for recording audio.  
+
+5. numpy
+Type: Python Library (Numerical Computation)  
+Use: Stores and processes audio data recorded from the microphone.  
+
+6. scipy (scipy.io.wavfile)
+Type: Python Library  
+Use: Saves recorded microphone audio into .wav format.  
+
+7. tempfile
+Type: Python Standard Library  
+Use: Creates temporary files to store uploaded or recorded audio.  
+
+8. os
+Type: Python Standard Library  
+Use: Used for file operations (deleting temp files, calling system commands like say).  
+
+9. torchaudio
+Type: Python Library (PyTorch Audio)  
+Use: Converts MP3 files into WAV format before sending them to Whisper for transcription.  
+
+10. ffmpeg (System Tool)
+Type: External Tool (Not a Python library)  
+Use: Required for decoding/encoding audio and video files.  
+Why Important: Whisper, torchaudio, and other audio libraries often rely on ffmpeg to handle MP3, WAV, or other audio formats correctly. Without ffmpeg installed, audio conversion and playback may fail.  
+Frontend Connection: Even though React frontend doesn’t use ffmpeg directly, the backend (FastAPI + Python) needs it to process audio files uploaded from the frontend.  
+
+11. macOS say command (System Tool)
+Type: OS Utility (macOS only)  
+Use: Converts transcribed text back into speech (TTS).  
+Frontend Connection: Optional — frontend can trigger TTS by enabling the speak flag when calling the /transcribe endpoint.  
+
+Frontend (React) Role
+The React app allows users to upload audio files or trigger recording.  
+It sends audio files to the FastAPI backend using fetch or axios.  
+Displays transcribed text returned by the backend.  
+Optionally, the frontend can request spoken output (TTS) by enabling a flag.  
+
+Summary
+Python Libraries: fastapi, uvicorn, whisper, sounddevice, numpy, scipy, torchaudio  
+Standard Libraries: tempfile, os  
+System Tools: ffmpeg, macOS say
